@@ -3,19 +3,22 @@ package idek
 import (
 	"encoding/json"
 	"errors"
+	"github.com/julienschmidt/httprouter"
 	"github.com/mozillazg/go-httpheader"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type ViewHandler[H, I, O any] func(ctx *Context[H], input I) (O, error)
 
-func View[H, I, O any](path string, handler ViewHandler[H, I, O]) {
-	http.Handle(path, http.HandlerFunc(handlerWrapper(handler)))
+func View[H, I, O any](method, path string, handler ViewHandler[H, I, O]) {
+	router.Handle(method, path, handlerWrapper(handler))
 }
 
-func handlerWrapper[H, I, O any](handler ViewHandler[H, I, O]) func(writer http.ResponseWriter, request *http.Request) {
-	return func(writer http.ResponseWriter, request *http.Request) {
+func handlerWrapper[H, I, O any](handler ViewHandler[H, I, O]) httprouter.Handle {
+	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		// Apply middlewares before anything else.
 		for _, middleware := range middlewaresHandlers {
 			if err := middleware(request); err != nil {
 				encodeError(writer, http.StatusBadRequest, err)
@@ -30,7 +33,14 @@ func handlerWrapper[H, I, O any](handler ViewHandler[H, I, O]) func(writer http.
 			return
 		}
 
+		// This input will concentrate everything, URL Params, Query Params and Body.
 		input := new(I)
+
+		// Decode URL Params.
+		if err := decoder.Decode(input, transformParams(params)); err != nil {
+			encodeError(writer, http.StatusBadRequest, err)
+			return
+		}
 
 		// Decode query params.
 		if err := decoder.Decode(input, request.URL.Query()); err != nil {
@@ -77,4 +87,12 @@ func encodeError(writer http.ResponseWriter, statusCode int, err error) {
 	_ = json.NewEncoder(writer).Encode(ErrorResponse{
 		Error: err.Error(),
 	})
+}
+
+func transformParams(params httprouter.Params) url.Values {
+	paramValues := url.Values{}
+	for _, param := range params {
+		paramValues.Set(param.Key, param.Value)
+	}
+	return paramValues
 }
