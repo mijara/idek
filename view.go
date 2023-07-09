@@ -10,16 +10,17 @@ import (
 	"net/url"
 )
 
-type ViewHandler[H, I, O any] func(ctx *Context[H], input I) (O, error)
+type ViewHandlerFunc[H, I, O any] func(ctx *Context[H], input I) (O, error)
 
-func View[H, I, O any](method, path string, handler ViewHandler[H, I, O]) {
+func ViewHandler[H, I, O any](method, path string, handler ViewHandlerFunc[H, I, O]) {
 	router.Handle(method, path, handlerWrapper(handler))
+	registerViewHandlerDoc[H, I, O](method, path)
 }
 
-func handlerWrapper[H, I, O any](handler ViewHandler[H, I, O]) httprouter.Handle {
+func handlerWrapper[H, I, O any](handler ViewHandlerFunc[H, I, O]) httprouter.Handle {
 	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		// Apply middlewares before anything else.
-		for _, middleware := range middlewaresHandlers {
+		for _, middleware := range requestHandlerFuncs {
 			if err := middleware(request); err != nil {
 				encodeError(writer, http.StatusBadRequest, err)
 				return
@@ -65,18 +66,22 @@ func handlerWrapper[H, I, O any](handler ViewHandler[H, I, O]) httprouter.Handle
 		output, err := handler(ctx, *input)
 		if err != nil {
 			status, errorResponse := errorHandler(err)
-			encodeOutput(writer, status, errorResponse)
+			encodeOutput(contextConfig{}, writer, status, errorResponse)
 			return
 		}
 
-		encodeOutput(writer, http.StatusOK, output)
-
+		encodeOutput(ctx.config, writer, http.StatusOK, output)
 	}
 }
 
-func encodeOutput(writer http.ResponseWriter, statusCode int, output any) {
+func encodeOutput(config contextConfig, writer http.ResponseWriter, statusCode int, output any) {
+	encoder := json.NewEncoder(writer)
+	if config.pretty {
+		encoder.SetIndent("", "  ")
+	}
+
 	writer.WriteHeader(statusCode)
-	if err := json.NewEncoder(writer).Encode(output); err != nil {
+	if err := encoder.Encode(output); err != nil {
 		encodeError(writer, http.StatusInternalServerError, err)
 		return
 	}

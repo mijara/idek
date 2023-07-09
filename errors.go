@@ -5,10 +5,10 @@ type ErrorResponse struct {
 	Data  any
 }
 
-type ErrorHandler func(err error) (int, ErrorResponse)
+type ErrorHandlerFunc func(error) (int, ErrorResponse)
 
-var errorHandler ErrorHandler
+var errorHandler ErrorHandlerFunc
 
-func Error(handler ErrorHandler) {
+func ErrorHandler(handler ErrorHandlerFunc) {
 	errorHandler = handler
 }
