@@ -41,7 +41,6 @@ func Hello(ctx *idek.Context[Headers], input HelloInput) (HelloOutput, error) {
 }
 
 func Random(ctx *idek.Context[Headers], input RandomInput) (RandomOutput, error) {
-	rand.Seed(input.Seed)
 	number := rand.Float64()
 
 	return RandomOutput{
@@ -50,6 +49,8 @@ func Random(ctx *idek.Context[Headers], input RandomInput) (RandomOutput, error)
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+	
 	idek.RequestHandler(ValidateHeadersRequestHandler)
 	idek.ErrorHandler(ErrorHandler)
 
