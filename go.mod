@@ -1,4 +1,4 @@
-module idek
+module github.com/mijara/idek
 
 go 1.20
 
