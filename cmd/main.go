@@ -23,10 +23,10 @@ type HelloOutput struct {
 	UserAgent string `json:"user_agent"`
 }
 
-func Hello(ctx *idek.Context[Headers], input HelloInput) (HelloOutput, error) {
+func Hello(ctx *idek.Context[Headers], input HelloInput) (*HelloOutput, error) {
 	ctx.SetPretty(input.Pretty)
 
-	return HelloOutput{
+	return &HelloOutput{
 		Message:   fmt.Sprintf("Hello, %s!", input.Name),
 		UserAgent: ctx.Headers().UserAgent,
 	}, nil

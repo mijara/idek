@@ -14,7 +14,6 @@ type ViewHandlerFunc[H, I, O any] func(ctx *Context[H], input I) (O, error)
 
 func ViewHandler[H, I, O any](method, path string, handler ViewHandlerFunc[H, I, O]) {
 	router.Handle(method, path, handlerWrapper(handler))
-	registerViewHandlerDoc[H, I, O](method, path)
 }
 
 func handlerWrapper[H, I, O any](handler ViewHandlerFunc[H, I, O]) httprouter.Handle {
