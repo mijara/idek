@@ -23,6 +23,14 @@ type HelloOutput struct {
 	UserAgent string `json:"user_agent"`
 }
 
+type RandomInput struct {
+	Seed int64 `json:"seed"`
+}
+
+type RandomOutput struct {
+	Number float64 `json:"number"`
+}
+
 func Hello(ctx *idek.Context[Headers], input HelloInput) (HelloOutput, error) {
 	ctx.SetPretty(input.Pretty)
 
@@ -32,11 +40,22 @@ func Hello(ctx *idek.Context[Headers], input HelloInput) (HelloOutput, error) {
 	}, nil
 }
 
+func Random(ctx *idek.Context[Headers], input RandomInput) (RandomOutput, error) {
+	number := rand.Float64()
+
+	return RandomOutput{
+		Number: number,
+	}, nil
+}
+
 func main() {
+	rand.Seed(time.Now().UnixNano())
+	
 	idek.RequestHandler(ValidateHeadersRequestHandler)
 	idek.ErrorHandler(ErrorHandler)
 
-	idek.ViewHandler("GET", "/hello/:name", Hello)
+ idek.ViewHandler("GET", "/hello/:name", Hello)
+ idek.ViewHandler("POST", "/random", Random)
 
 	idek.Start(":8080")
 }
