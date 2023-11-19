@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"idek"
+	"github.com/mijara/idek"
 	"net/http"
 )
 
