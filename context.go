@@ -48,7 +48,7 @@ func WithPretty(value bool) ContextOpt {
 	}
 }
 
-func WithFinish(onFinishFunc OnFinishFunc) ContextOpt {
+func WithOnFinish(onFinishFunc OnFinishFunc) ContextOpt {
 	return func(o *contextConfig) {
 		o.onFinishFuncs = append(o.onFinishFuncs, onFinishFunc)
 	}

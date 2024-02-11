@@ -18,7 +18,7 @@ func ViewHandler[I, O any](method, path string, handler ViewHandlerFunc[I, O]) {
 }
 
 func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
-	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+	return func(w http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		request = request.WithContext(context.Background())
 
 		ctx := &Context{
@@ -28,7 +28,7 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 		// Apply middlewares before anything else.
 		for _, middleware := range middlewareFuncs {
 			if err := middleware(ctx); err != nil {
-				encodeError(writer, http.StatusBadRequest, err)
+				encodeError(w, http.StatusBadRequest, err)
 				return
 			}
 		}
@@ -38,13 +38,13 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 
 		// Decode URL Path Params (ex. /hello/:name)
 		if err := decoder.Decode(input, transformParams(params)); err != nil {
-			encodeError(writer, http.StatusBadRequest, err)
+			encodeError(w, http.StatusBadRequest, err)
 			return
 		}
 
 		// Decode query params (ex. ...?query=Hello)
 		if err := decoder.Decode(input, request.URL.Query()); err != nil {
-			encodeError(writer, http.StatusBadRequest, err)
+			encodeError(w, http.StatusBadRequest, err)
 			return
 		}
 
@@ -52,49 +52,50 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 		defer request.Body.Close()
 		if err := json.NewDecoder(request.Body).Decode(input); err != nil {
 			if !errors.Is(err, io.EOF) {
-				encodeError(writer, http.StatusBadRequest, err)
+				encodeError(w, http.StatusBadRequest, err)
 				return
 			}
 		}
 
 		output, err := handler(ctx, *input)
 		if err != nil {
-			errorResponse := errorHandler(err)
-			if errorResponse == nil {
-				errorResponse = &ErrorResponse{
-					Error: err.Error(),
-				}
-			}
+			handleOutput(ctx, w, &Response{
+				StatusCode: http.StatusInternalServerError,
+				Error:      err,
+			})
 
-			handleOutput(ctx, writer, errorResponse.GetStatus(), errorResponse)
 			return
 		}
 
-		handleOutput(ctx, writer, http.StatusOK, output)
+		handleOutput(ctx, w, &Response{
+			StatusCode: http.StatusOK,
+			Message:    output,
+		})
 	}
 }
 
-func handleOutput(ctx *Context, writer http.ResponseWriter, statusCode int, output any) {
+func handleOutput(ctx *Context, w http.ResponseWriter, res *Response) {
 	for _, onFinishFunc := range ctx.config.onFinishFuncs {
-		onFinishFunc(ctx, statusCode, output)
+		onFinishFunc(ctx, res)
 	}
 
-	encoder := json.NewEncoder(writer)
+	encoder := json.NewEncoder(w)
 	if ctx.config.pretty {
 		encoder.SetIndent("", "  ")
 	}
 
-	writer.WriteHeader(statusCode)
-	if err := encoder.Encode(output); err != nil {
-		encodeError(writer, http.StatusInternalServerError, err)
+	w.WriteHeader(res.StatusCode)
+	if err := encoder.Encode(res); err != nil {
+		encodeError(w, http.StatusInternalServerError, err)
 		return
 	}
 }
 
 func encodeError(writer http.ResponseWriter, statusCode int, err error) {
 	writer.WriteHeader(statusCode)
-	_ = json.NewEncoder(writer).Encode(ErrorResponse{
-		Error: err.Error(),
+	_ = json.NewEncoder(writer).Encode(Response{
+		StatusCode: statusCode,
+		Error:      err,
 	})
 }
 
