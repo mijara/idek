@@ -10,8 +10,12 @@ var middlewareFuncs []MiddlewareFunc
 
 type MiddlewareFunc func(ctx *Context) error
 
-func Middleware(handler ...MiddlewareFunc) {
-	middlewareFuncs = append(middlewareFuncs, handler...)
+type OnFinishFunc func(ctx *Context, res *Response)
+
+// Middleware adds all middlewares into the life-cycle of endpoint handling.
+// Middlewares are executed before any deserialization and endpoint execution.
+func Middleware(funcs ...MiddlewareFunc) {
+	middlewareFuncs = append(middlewareFuncs, funcs...)
 }
 
 func PrettyMiddleware(ctx *Context) error {
@@ -24,13 +28,33 @@ func PrettyMiddleware(ctx *Context) error {
 func SlogMiddleware(ctx *Context) error {
 	start := time.Now()
 
-	ctx.Configure(WithFinish(func(ctx *Context, status int, output any) {
-		slog.Debug("http request",
+	ctx.Configure(WithOnFinish(func(ctx *Context, res *Response) {
+		attrs := []any{
 			slog.String("path", ctx.URL().RawPath),
-			slog.Int("status", status),
-			slog.Duration("elapsed", time.Since(start)),
-		)
+			slog.Int("status", res.StatusCode),
+			slog.Int64("elapsed", time.Since(start).Milliseconds()),
+		}
+
+		if res.IsError() {
+			attrs = append(attrs, slog.String("error", res.Error.Error()))
+		}
+
+		slog.Debug("http request", attrs...)
 	}))
 
 	return nil
+}
+
+type ErrorHandler func(error) (int, error)
+
+func ErrorMiddleware(handler ErrorHandler) MiddlewareFunc {
+	return func(ctx *Context) error {
+		ctx.Configure(WithOnFinish(func(ctx *Context, res *Response) {
+			if res.Error != nil {
+				res.StatusCode, res.Error = handler(res.Error)
+			}
+		}))
+
+		return nil
+	}
 }

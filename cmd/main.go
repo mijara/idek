@@ -22,7 +22,7 @@ type HelloOutput struct {
 }
 
 func Hello(ctx *idek.Context, input HelloInput) (*HelloOutput, error) {
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 1)
 
 	if input.Name == "bad" {
 		return nil, ErrBadRequest
@@ -38,23 +38,37 @@ func main() {
 		Level: slog.LevelDebug,
 	})))
 
-	idek.Middleware(idek.SlogMiddleware)
 	idek.Middleware(idek.PrettyMiddleware)
-	idek.ErrorHandler(ErrorHandler)
+	idek.Middleware(idek.ErrorMiddleware(ErrorHandler)) // Important to place this before logging
+	idek.Middleware(idek.SlogMiddleware)
 
 	idek.ViewHandler("GET", "/hello/:name", Hello)
 
 	idek.Start(":8080")
 }
 
-func ErrorHandler(err error) *idek.ErrorResponse {
+func ErrorHandler(err error) (int, error) {
 	if errors.Is(err, ErrBadRequest) {
-		return &idek.ErrorResponse{
-			Status: http.StatusBadRequest,
-			Error:  err.Error(),
+		return http.StatusBadRequest, &MyCustomError{
+			err: err.Error(),
+			data: map[string]string{
+				"name": "really bad name!",
+			},
 		}
 	}
 
-	// InternalServerError by default.
-	return nil
+	return http.StatusInternalServerError, err
+}
+
+type MyCustomError struct {
+	err  string
+	data map[string]string
+}
+
+func (e *MyCustomError) Error() string {
+	return e.err
+}
+
+func (e *MyCustomError) Data() any {
+	return e.data
 }
