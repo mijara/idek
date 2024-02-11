@@ -3,37 +3,43 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/mijara/idek"
+	"log/slog"
 	"net/http"
+	"os"
+	"time"
+
+	"github.com/mijara/idek"
 )
 
 var ErrBadRequest = errors.New("bad request")
 
-type Headers struct {
-	UserAgent string `header:"user-agent"`
-}
-
 type HelloInput struct {
-	Pretty bool   `json:"pretty"`
-	Name   string `json:"name"`
+	Name string `json:"name"`
 }
 
 type HelloOutput struct {
-	Message   string `json:"message"`
-	UserAgent string `json:"user_agent"`
+	Message string `json:"message"`
 }
 
-func Hello(ctx *idek.Context[Headers], input HelloInput) (*HelloOutput, error) {
-	ctx.SetPretty(input.Pretty)
+func Hello(ctx *idek.Context, input HelloInput) (*HelloOutput, error) {
+	time.Sleep(time.Second * 10)
+
+	if input.Name == "bad" {
+		return nil, ErrBadRequest
+	}
 
 	return &HelloOutput{
-		Message:   fmt.Sprintf("Hello, %s!", input.Name),
-		UserAgent: ctx.Headers().UserAgent,
+		Message: fmt.Sprintf("Hello, %s!", input.Name),
 	}, nil
 }
 
 func main() {
-	idek.RequestHandler(ValidateHeadersRequestHandler)
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+
+	idek.Middleware(idek.SlogMiddleware)
+	idek.Middleware(idek.PrettyMiddleware)
 	idek.ErrorHandler(ErrorHandler)
 
 	idek.ViewHandler("GET", "/hello/:name", Hello)
@@ -41,22 +47,14 @@ func main() {
 	idek.Start(":8080")
 }
 
-func ValidateHeadersRequestHandler(request *http.Request) error {
-	if xApiToken := request.Header.Get("user-agent"); xApiToken == "" {
-		return fmt.Errorf("where is your user-agent!?: %w", ErrBadRequest)
-	}
-
-	return nil
-}
-
-func ErrorHandler(err error) (int, idek.ErrorResponse) {
+func ErrorHandler(err error) *idek.ErrorResponse {
 	if errors.Is(err, ErrBadRequest) {
-		return http.StatusBadRequest, idek.ErrorResponse{
-			Error: err.Error(),
+		return &idek.ErrorResponse{
+			Status: http.StatusBadRequest,
+			Error:  err.Error(),
 		}
 	}
 
-	return http.StatusInternalServerError, idek.ErrorResponse{
-		Error: err.Error(),
-	}
+	// InternalServerError by default.
+	return nil
 }

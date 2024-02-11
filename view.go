@@ -1,48 +1,48 @@
 package idek
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"github.com/julienschmidt/httprouter"
-	"github.com/mozillazg/go-httpheader"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/julienschmidt/httprouter"
 )
 
-type ViewHandlerFunc[H, I, O any] func(ctx *Context[H], input I) (O, error)
+type ViewHandlerFunc[I, O any] func(ctx *Context, input I) (O, error)
 
-func ViewHandler[H, I, O any](method, path string, handler ViewHandlerFunc[H, I, O]) {
+func ViewHandler[I, O any](method, path string, handler ViewHandlerFunc[I, O]) {
 	router.Handle(method, path, handlerWrapper(handler))
 }
 
-func handlerWrapper[H, I, O any](handler ViewHandlerFunc[H, I, O]) httprouter.Handle {
+func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		request = request.WithContext(context.Background())
+
+		ctx := &Context{
+			request: request,
+		}
+
 		// Apply middlewares before anything else.
-		for _, middleware := range requestHandlerFuncs {
-			if err := middleware(request); err != nil {
+		for _, middleware := range middlewareFuncs {
+			if err := middleware(ctx); err != nil {
 				encodeError(writer, http.StatusBadRequest, err)
 				return
 			}
 		}
 
-		// Decode Headers.
-		headers := new(H)
-		if err := httpheader.Decode(request.Header, headers); err != nil {
-			encodeError(writer, http.StatusBadRequest, err)
-			return
-		}
-
 		// This input will concentrate everything, URL Params, Query Params and Body.
 		input := new(I)
 
-		// Decode URL Params.
+		// Decode URL Path Params (ex. /hello/:name)
 		if err := decoder.Decode(input, transformParams(params)); err != nil {
 			encodeError(writer, http.StatusBadRequest, err)
 			return
 		}
 
-		// Decode query params.
+		// Decode query params (ex. ...?query=Hello)
 		if err := decoder.Decode(input, request.URL.Query()); err != nil {
 			encodeError(writer, http.StatusBadRequest, err)
 			return
@@ -57,25 +57,30 @@ func handlerWrapper[H, I, O any](handler ViewHandlerFunc[H, I, O]) httprouter.Ha
 			}
 		}
 
-		ctx := &Context[H]{
-			ctx:     request.Context(),
-			headers: *headers,
-		}
-
 		output, err := handler(ctx, *input)
 		if err != nil {
-			status, errorResponse := errorHandler(err)
-			encodeOutput(contextConfig{}, writer, status, errorResponse)
+			errorResponse := errorHandler(err)
+			if errorResponse == nil {
+				errorResponse = &ErrorResponse{
+					Error: err.Error(),
+				}
+			}
+
+			handleOutput(ctx, writer, errorResponse.GetStatus(), errorResponse)
 			return
 		}
 
-		encodeOutput(ctx.config, writer, http.StatusOK, output)
+		handleOutput(ctx, writer, http.StatusOK, output)
 	}
 }
 
-func encodeOutput(config contextConfig, writer http.ResponseWriter, statusCode int, output any) {
+func handleOutput(ctx *Context, writer http.ResponseWriter, statusCode int, output any) {
+	for _, onFinishFunc := range ctx.config.onFinishFuncs {
+		onFinishFunc(ctx, statusCode, output)
+	}
+
 	encoder := json.NewEncoder(writer)
-	if config.pretty {
+	if ctx.config.pretty {
 		encoder.SetIndent("", "  ")
 	}
 

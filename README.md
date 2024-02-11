@@ -10,10 +10,6 @@ import (
 	"idek"
 )
 
-type Headers struct {
-	XAPIToken string `header:"x-api-token"`
-}
-
 type HelloInput struct {
 	Name string `json:"name"`
 }
@@ -22,7 +18,7 @@ type HelloOutput struct {
 	Message string `json:"message"`
 }
 
-func Hello(ctx *idek.Context[Headers], input HelloInput) (HelloOutput, error) {
+func Hello(ctx *idek.Context, input HelloInput) (HelloOutput, error) {
 	return HelloOutput{
 		Message: fmt.Sprintf("Hello, %s!", input.Name),
 	}, nil
@@ -39,14 +35,6 @@ Check `/cmd` for a more complete example.
 ## Opinions
 
 - URL Params, Query params and body will all parse into the same object, you can pass them in any way you want. 
-
-## Automatic Docs [Experimental]
-
-Run this to generate some basic docs from your views.
-
-```shell
-go run cmd/main.go --docs
-```
 
 ## Idek?
 
