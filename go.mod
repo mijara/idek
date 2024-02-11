@@ -1,6 +1,6 @@
 module github.com/mijara/idek
 
-go 1.20
+go 1.21.7
 
 require (
 	github.com/gorilla/schema v1.2.0
