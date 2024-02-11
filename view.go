@@ -22,6 +22,7 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 		ctx := &Context{
 			config:  newDefaultConfig(),
 			request: req,
+			params:  params,
 		}
 
 		// Apply middlewares before anything else.
@@ -34,7 +35,7 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 
 		// Decode endpoint input according to generic type.
 		input := new(I)
-		if err := ctx.config.requestDecoder(w, req, params, input); err != nil {
+		if err := ctx.config.requestDecoder(ctx, req, input); err != nil {
 			encodeError(w, http.StatusBadRequest, err)
 			return
 		}
@@ -61,13 +62,7 @@ func handleOutput(ctx *Context, w http.ResponseWriter, res *Response) {
 		onFinishFunc(ctx, res)
 	}
 
-	encoder := json.NewEncoder(w)
-	if ctx.config.pretty {
-		encoder.SetIndent("", "  ")
-	}
-
-	w.WriteHeader(res.StatusCode)
-	if err := encoder.Encode(res); err != nil {
+	if err := ctx.config.responseEncoder(ctx, w, res); err != nil {
 		encodeError(w, http.StatusInternalServerError, err)
 		return
 	}

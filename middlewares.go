@@ -65,3 +65,10 @@ func RequestDecoderMiddleware(requestDecoder RequestDecoder) MiddlewareFunc {
 		return nil
 	}
 }
+
+func ResponseEncoderMiddleware(responseEncoder ResponseEncoder) MiddlewareFunc {
+	return func(ctx *Context) error {
+		ctx.Configure(WithResponseEncoder(responseEncoder))
+		return nil
+	}
+}
