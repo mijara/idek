@@ -3,8 +3,6 @@ package idek
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -18,11 +16,12 @@ func ViewHandler[I, O any](method, path string, handler ViewHandlerFunc[I, O]) {
 }
 
 func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
-	return func(w http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		request = request.WithContext(context.Background())
+	return func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		req = req.WithContext(context.Background())
 
 		ctx := &Context{
-			request: request,
+			config:  newDefaultConfig(),
+			request: req,
 		}
 
 		// Apply middlewares before anything else.
@@ -33,28 +32,11 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 			}
 		}
 
-		// This input will concentrate everything, URL Params, Query Params and Body.
+		// Decode endpoint input according to generic type.
 		input := new(I)
-
-		// Decode URL Path Params (ex. /hello/:name)
-		if err := decoder.Decode(input, transformParams(params)); err != nil {
+		if err := ctx.config.requestDecoder(w, req, params, input); err != nil {
 			encodeError(w, http.StatusBadRequest, err)
 			return
-		}
-
-		// Decode query params (ex. ...?query=Hello)
-		if err := decoder.Decode(input, request.URL.Query()); err != nil {
-			encodeError(w, http.StatusBadRequest, err)
-			return
-		}
-
-		// Decode body.
-		defer request.Body.Close()
-		if err := json.NewDecoder(request.Body).Decode(input); err != nil {
-			if !errors.Is(err, io.EOF) {
-				encodeError(w, http.StatusBadRequest, err)
-				return
-			}
 		}
 
 		output, err := handler(ctx, *input)

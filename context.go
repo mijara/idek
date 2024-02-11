@@ -6,16 +6,9 @@ import (
 	"net/url"
 )
 
-type contextConfig struct {
-	pretty        bool
-	onFinishFuncs []OnFinishFunc
-}
-
 type Context struct {
 	request *http.Request
-
-	// Configs that views can set to change the output format, representation, etc.
-	config contextConfig
+	config  *contextConfig
 }
 
 func (c *Context) Ctx() context.Context {
@@ -36,15 +29,33 @@ func (c *Context) Query() url.Values {
 
 func (c *Context) Configure(opts ...ContextOpt) {
 	for _, o := range opts {
-		o(&c.config)
+		o(c.config)
 	}
 }
 
 type ContextOpt func(o *contextConfig)
 
+type contextConfig struct {
+	pretty         bool
+	onFinishFuncs  []OnFinishFunc
+	requestDecoder RequestDecoder
+}
+
+func newDefaultConfig() *contextConfig {
+	return &contextConfig{
+		requestDecoder: DefaultRequestDecode,
+	}
+}
+
 func WithPretty(value bool) ContextOpt {
 	return func(o *contextConfig) {
 		o.pretty = value
+	}
+}
+
+func WithRequestDecoder(requestDecoder RequestDecoder) ContextOpt {
+	return func(o *contextConfig) {
+		o.requestDecoder = requestDecoder
 	}
 }
 

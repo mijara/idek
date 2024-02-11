@@ -58,3 +58,10 @@ func ErrorMiddleware(handler ErrorHandler) MiddlewareFunc {
 		return nil
 	}
 }
+
+func RequestDecoderMiddleware(requestDecoder RequestDecoder) MiddlewareFunc {
+	return func(ctx *Context) error {
+		ctx.Configure(WithRequestDecoder(requestDecoder))
+		return nil
+	}
+}
