@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/mijara/idek"
 )
 
@@ -41,40 +39,11 @@ func main() {
 
 	idek.Middleware(idek.PrettyMiddleware)
 	idek.Middleware(idek.RequestDecoderMiddleware(CustomRequestDecoder))
-	idek.Middleware(idek.ErrorMiddleware(ErrorHandler)) // Important to place this before logging
+	idek.Middleware(idek.ResponseEncoderMiddleware(CustomResponseEncoder))
+	idek.Middleware(idek.ErrorMiddleware(CustomErrorHandler)) // important to place this before logging.
 	idek.Middleware(idek.SlogMiddleware)
 
 	idek.ViewHandler("GET", "/hello/:name", Hello)
 
 	idek.Start(":8080")
-}
-
-func CustomRequestDecoder(w http.ResponseWriter, req *http.Request, params httprouter.Params, input any) error {
-	return idek.DefaultRequestDecode(w, req, params, input)
-}
-
-func ErrorHandler(err error) (int, error) {
-	if errors.Is(err, ErrBadRequest) {
-		return http.StatusBadRequest, &MyCustomError{
-			err: err.Error(),
-			data: map[string]string{
-				"name": "really bad name!",
-			},
-		}
-	}
-
-	return http.StatusInternalServerError, err
-}
-
-type MyCustomError struct {
-	err  string
-	data map[string]string
-}
-
-func (e *MyCustomError) Error() string {
-	return e.err
-}
-
-func (e *MyCustomError) Data() any {
-	return e.data
 }

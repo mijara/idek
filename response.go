@@ -9,9 +9,16 @@ type ErrorData interface {
 }
 
 type Response struct {
+	// StatusCode is the http status code of this response.
 	StatusCode int
-	Message    any   `json:",omitempty"`
-	Error      error `json:",omitempty"`
+
+	// Message is the OK result of this response.
+	Message any `json:",omitempty"`
+
+	// Error is the error of this response.
+	// An error can implement the "Data() any" method to extend
+	// this into a struct of {Detail, Data} as response.
+	Error error `json:",omitempty"`
 }
 
 type writableResponse struct {
