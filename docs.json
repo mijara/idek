@@ -1,0 +1,34 @@
+{
+  "Views": [
+    {
+      "Method": "GET",
+      "Path": "/hello/:name",
+      "headers": [
+        {
+          "name": "user-agent",
+          "type": "string"
+        }
+      ],
+      "input": [
+        {
+          "name": "pretty",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "output": [
+        {
+          "name": "message",
+          "type": "string"
+        },
+        {
+          "name": "user_agent",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

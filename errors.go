@@ -1,14 +1,24 @@
 package idek
 
-type ErrorResponse struct {
-	Error string
-	Data  any
-}
+import "net/http"
 
-type ErrorHandlerFunc func(error) (int, ErrorResponse)
+type ErrorHandlerFunc func(error) *ErrorResponse
 
 var errorHandler ErrorHandlerFunc
 
 func ErrorHandler(handler ErrorHandlerFunc) {
 	errorHandler = handler
+}
+
+type ErrorResponse struct {
+	Status int `json:"-"`
+	Error  string
+	Data   any
+}
+
+func (r *ErrorResponse) GetStatus() int {
+	if r.Status == 0 {
+		return http.StatusInternalServerError
+	}
+	return r.Status
 }
