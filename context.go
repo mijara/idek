@@ -62,7 +62,7 @@ type contextConfig struct {
 func newDefaultConfig() *contextConfig {
 	return &contextConfig{
 		requestDecoder:  DefaultRequestDecode,
-		responseEncoder: DefaultResponseEncoder,
+		responseEncoder: DefaultResponseEncode,
 	}
 }
 

@@ -35,7 +35,7 @@ func DefaultRequestDecode(ctx *Context, req *http.Request, input any) error {
 	return nil
 }
 
-func DefaultResponseEncoder(ctx *Context, rw http.ResponseWriter, res *Response) error {
+func DefaultResponseEncode(ctx *Context, rw http.ResponseWriter, res *Response) error {
 	rw.WriteHeader(res.StatusCode)
 
 	encoder := json.NewEncoder(rw)

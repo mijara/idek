@@ -14,7 +14,7 @@ func CustomRequestDecoder(ctx *idek.Context, req *http.Request, input any) error
 }
 
 func CustomResponseEncoder(ctx *idek.Context, rw http.ResponseWriter, res *idek.Response) error {
-	return idek.DefaultResponseEncoder(ctx, rw, res)
+	return idek.DefaultResponseEncode(ctx, rw, res)
 }
 
 // Example of how to create a gzip response encoder instead of the default JSON encoder.
