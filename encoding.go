@@ -5,9 +5,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 type RequestDecoder func(*Context, *http.Request, any) error
+
+type ResponseEncoder func(*Context, http.ResponseWriter, *Response) error
 
 func DefaultRequestDecode(ctx *Context, req *http.Request, input any) error {
 	// Decode URL Path Params (ex. /hello/:name)
@@ -30,12 +35,6 @@ func DefaultRequestDecode(ctx *Context, req *http.Request, input any) error {
 	return nil
 }
 
-type ResponseEncoder func(*Context, http.ResponseWriter, *Response) error
-
-type EncoderOptions struct {
-	Pretty bool
-}
-
 func DefaultResponseEncoder(ctx *Context, rw http.ResponseWriter, res *Response) error {
 	rw.WriteHeader(res.StatusCode)
 
@@ -44,4 +43,12 @@ func DefaultResponseEncoder(ctx *Context, rw http.ResponseWriter, res *Response)
 		encoder.SetIndent("", "  ")
 	}
 	return encoder.Encode(res)
+}
+
+func transformParams(params httprouter.Params) url.Values {
+	paramValues := url.Values{}
+	for _, param := range params {
+		paramValues.Set(param.Key, param.Value)
+	}
+	return paramValues
 }

@@ -7,11 +7,11 @@ import (
 )
 
 type HelloInput struct {
-	Name string `json:"name"`
+	Name string
 }
 
 type HelloOutput struct {
-	Message string `json:"message"`
+	Message string
 }
 
 func Hello(ctx *idek.Context, input HelloInput) (*HelloOutput, error) {
@@ -21,7 +21,7 @@ func Hello(ctx *idek.Context, input HelloInput) (*HelloOutput, error) {
 }
 
 func main() {
-	idek.ViewHandler("GET", "/hello/:name", Hello)
+	idek.Handle("GET", "/hello/:name", Hello)
 
 	idek.Start(":8080")
 }

@@ -43,7 +43,7 @@ func main() {
 	idek.Middleware(idek.ErrorMiddleware(CustomErrorHandler)) // important to place this before logging.
 	idek.Middleware(idek.SlogMiddleware)
 
-	idek.ViewHandler("GET", "/hello/:name", Hello)
+	idek.Handle("GET", "/hello/:name", Hello)
 
 	idek.Start(":8080")
 }
