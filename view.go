@@ -4,24 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 
 	"github.com/julienschmidt/httprouter"
 )
 
-type ViewHandlerFunc[I, O any] func(ctx *Context, input I) (O, error)
+type HandlerFunc[I, O any] func(ctx *Context, input I) (O, error)
 
-func ViewHandler[I, O any](method, path string, handler ViewHandlerFunc[I, O]) {
+func Handle[I, O any](method, path string, handler HandlerFunc[I, O]) {
 	router.Handle(method, path, handlerWrapper(handler))
 }
 
-func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
+func handlerWrapper[I, O any](handler HandlerFunc[I, O]) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		req = req.WithContext(context.Background())
-
 		ctx := &Context{
+			request: req.WithContext(context.Background()),
 			config:  newDefaultConfig(),
-			request: req,
 			params:  params,
 		}
 
@@ -35,7 +32,7 @@ func handlerWrapper[I, O any](handler ViewHandlerFunc[I, O]) httprouter.Handle {
 
 		// Decode endpoint input according to generic type.
 		input := new(I)
-		if err := ctx.config.requestDecoder(ctx, req, input); err != nil {
+		if err := ctx.config.requestDecoder(ctx, ctx.request, input); err != nil {
 			encodeError(w, http.StatusBadRequest, err)
 			return
 		}
@@ -74,12 +71,4 @@ func encodeError(writer http.ResponseWriter, statusCode int, err error) {
 		StatusCode: statusCode,
 		Error:      err,
 	})
-}
-
-func transformParams(params httprouter.Params) url.Values {
-	paramValues := url.Values{}
-	for _, param := range params {
-		paramValues.Set(param.Key, param.Value)
-	}
-	return paramValues
 }

@@ -40,6 +40,10 @@ func (c *Context) Configure(opts ...ContextOpt) {
 	}
 }
 
+type EncoderOptions struct {
+	Pretty bool
+}
+
 func (c *Context) EncodingOpts() EncoderOptions {
 	return EncoderOptions{
 		Pretty: c.config.pretty,
